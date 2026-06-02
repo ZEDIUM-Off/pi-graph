@@ -30,6 +30,9 @@ export const GraphToolParamsSchema = Type.Object(
 		message: Type.Optional(Type.String()),
 		dryRun: Type.Optional(Type.Boolean()),
 		saveRun: Type.Optional(Type.Boolean()),
+		ui: Type.Optional(Type.Boolean({ default: true })),
+		shortcuts: Type.Optional(Type.Boolean({ default: true })),
+		renderSvg: Type.Optional(Type.Boolean({ default: true })),
 		format: Type.Optional(Type.String({ enum: FormatEnum })),
 	},
 	{ additionalProperties: false },
@@ -45,5 +48,8 @@ export type GraphToolParams = {
 	message?: string;
 	dryRun?: boolean;
 	saveRun?: boolean;
+	ui?: boolean;
+	shortcuts?: boolean;
+	renderSvg?: boolean;
 	format?: (typeof FormatEnum)[number];
 };

@@ -85,6 +85,8 @@ test("interrupts and resumes human nodes", async () => {
 	};
 	const waiting = await runGraph(graph, {});
 	assert.equal(waiting.status, "waiting");
+	assert.equal(waiting.currentNode, "approval");
+	assert.deepEqual(waiting.nextRoutes, ["done"]);
 	assert.deepEqual((waiting.interrupt as any).payload, { kind: "approval" });
 
 	const resumed = await resumeGraph(waiting.id, { approved: true });

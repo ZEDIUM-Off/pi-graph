@@ -17,6 +17,32 @@ test("run returns controlled subagents-unavailable error for subagent example wi
 	assert.equal(result.details.code, "subagents_unavailable");
 });
 
+test("run emits Pi tool-shaped updates", async () => {
+	const updates: any[] = [];
+	const result = await handleGraphAction(
+		{
+			action: "run",
+			config: {
+				version: 1,
+				name: "update-shape",
+				start: "a",
+				nodes: [{ id: "a", type: "transform" }],
+				edges: { a: "end" },
+			},
+			renderSvg: false,
+		},
+		undefined,
+		undefined,
+		(update: any) => updates.push(update),
+	);
+	assert.match(result.text, /completed/);
+	assert.ok(updates.length >= 1);
+	assert.ok(updates.every((update) => Array.isArray(update.content)));
+	assert.ok(
+		updates.every((update) => typeof update.content[0]?.text === "string"),
+	);
+});
+
 test("create in builtin scope returns readonly error", async () => {
 	const result = await handleGraphAction({
 		action: "create",

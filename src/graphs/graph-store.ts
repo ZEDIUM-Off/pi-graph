@@ -4,6 +4,7 @@ import { GraphError } from "../shared/errors.js";
 import { readJsonFile, writeJsonAtomic } from "../shared/json.js";
 import { ensureDir, graphDirs, graphPath } from "../shared/paths.js";
 import type { GraphConfig, GraphRecord, GraphScope } from "../shared/types.js";
+import { ensureGraphArtifacts } from "./graph-artifacts.js";
 import { normalizeGraphConfig } from "./graph-normalizer.js";
 import { validateGraphConfig } from "./graph-validator.js";
 import { resolveGraph } from "./graph-loader.js";
@@ -61,7 +62,8 @@ export async function createGraph(
 		if (e instanceof GraphError) throw e;
 	}
 	await writeJsonAtomic(file, graph);
-	return { path: file, scope, config: graph };
+	const artifacts = await ensureGraphArtifacts(graph, { scope });
+	return { path: file, scope, config: graph, artifacts };
 }
 
 export async function updateGraph(
@@ -89,7 +91,8 @@ export async function updateGraph(
 	const graph = checked({ ...(config as object), name });
 	const file = graphPath(scope, name);
 	await writeJsonAtomic(file, graph);
-	return { path: file, scope, config: graph };
+	const artifacts = await ensureGraphArtifacts(graph, { scope });
+	return { path: file, scope, config: graph, artifacts };
 }
 
 export async function deleteGraph(name: string, scope?: GraphScope) {
