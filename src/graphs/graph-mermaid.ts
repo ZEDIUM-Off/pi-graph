@@ -1,0 +1,16 @@
+import type { GraphConfig } from "../shared/types.js";
+
+export function renderMermaid(graph: GraphConfig): string {
+  const lines = ["flowchart TD", `  START([START]) --> ${nodeId(graph.start)}`];
+  for (const node of graph.nodes) lines.push(`  ${nodeId(node.id)}["${esc(node.label ?? node.id)}\\n${esc(node.type)}"]`);
+  for (const [from, edge] of Object.entries(graph.edges ?? {})) {
+    if (typeof edge === "string") lines.push(`  ${nodeId(from)} --> ${target(edge)}`);
+    else if (Array.isArray(edge)) for (const t of edge) lines.push(`  ${nodeId(from)} --> ${target(t)}`);
+    else for (const [label, t] of Object.entries(edge)) lines.push(`  ${nodeId(from)} -- "${esc(label)}" --> ${target(t)}`);
+  }
+  lines.push("  END([END])");
+  return lines.join("\n");
+}
+function nodeId(id: string) { return id.replace(/[^A-Za-z0-9_]/g, "_"); }
+function target(id: string) { return id === "end" ? "END" : nodeId(id); }
+function esc(s: string) { return String(s).replace(/["<>]/g, "").replace(/\|/g, "/"); }

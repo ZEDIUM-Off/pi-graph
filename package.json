@@ -1,0 +1,44 @@
+{
+  "name": "pi-graph",
+  "version": "0.1.0",
+  "description": "Pi extension for validating, previewing, and managing JSON LangGraph workflows.",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "langgraph",
+    "workflow"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/extension/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ]
+  },
+  "scripts": {
+    "test": "node --test --test-reporter spec --import tsx test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@langchain/langgraph": "^0.4.9",
+    "typebox": "^1.0.55"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.78.0"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

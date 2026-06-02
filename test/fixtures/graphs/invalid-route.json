@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "invalid-route",
+  "start": "route",
+  "nodes": [ { "id": "route", "type": "condition" } ],
+  "edges": { "route": "missing" }
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "valid-simple",
+  "start": "start",
+  "nodes": [
+    { "id": "start", "type": "transform", "config": { "set": { "ok": true } } },
+    { "id": "done", "type": "end" }
+  ],
+  "edges": { "start": "done", "done": "end" }
+}

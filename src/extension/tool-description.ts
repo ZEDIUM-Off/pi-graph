@@ -1,0 +1,1 @@
+export const graphToolDescription = `Manage JSON workflow graphs for Pi. Use action=list before run; validate and preview a graph before executing it. Current MVP supports doctor/list/get/create/update/delete/validate/preview/render only.`;

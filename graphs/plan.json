@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "name": "plan",
+  "description": "Interactive planning flow. Starts from an understand_context and freely explores code targets, framework docs, library options, implementation strategy, risks, and verification before producing a plan_context handoff.",
+  "start": "init",
+  "context": { "mode": "fresh" },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "transform",
+      "label": "Load understand_context",
+      "config": {
+        "set": {
+          "flow": "plan",
+          "understand_context": "{{input.understand_context}}",
+          "goal": "{{input.understand_context.goal}}"
+        }
+      }
+    },
+    {
+      "id": "hub",
+      "type": "human",
+      "label": "Planning hub",
+      "config": {
+        "prompt": "Choose the next planning lens. Resume with {\"next\":\"code\"|\"docs\"|\"libraries\"|\"strategy\"|\"verification\"|\"synthesize\", \"note\":\"optional\"}.",
+        "payload": {
+          "goal": "{{state.goal}}",
+          "understand_context": "{{state.understand_context}}",
+          "known_plan": {
+            "code": "{{state.code}}",
+            "docs": "{{state.docs}}",
+            "libraries": "{{state.libraries}}",
+            "strategy": "{{state.strategy}}",
+            "verification": "{{state.verification}}"
+          },
+          "routes": ["code", "docs", "libraries", "strategy", "verification", "synthesize"]
+        }
+      }
+    },
+    { "id": "route", "type": "condition", "label": "Route selected planning lens", "config": { "from": "outputs.hub.next", "fallback": "strategy" } },
+    {
+      "id": "code",
+      "type": "human",
+      "label": "Code targets",
+      "config": {
+        "prompt": "Identify concrete code targets. Resume with {\"filesToRead\":[...], \"filesToChange\":[...], \"symbols\":[...], \"dependencies\":[...], \"commands\":[...], \"unknowns\":[...]}.",
+        "payload": { "understand_context": "{{state.understand_context}}", "previous": "{{state.code}}" }
+      }
+    },
+    { "id": "save_code", "type": "transform", "label": "Save code targets", "config": { "set": { "code": "{{outputs.code}}" } } },
+    {
+      "id": "docs",
+      "type": "human",
+      "label": "Framework documentation and practices",
+      "config": {
+        "prompt": "Collect exact framework docs and best practices. Resume with {\"framework\":\"...\", \"docs\":[{\"title\":\"...\",\"url\":\"...\",\"why\":\"...\"}], \"patterns\":[...], \"warnings\":[...]}.",
+        "payload": { "understand_context": "{{state.understand_context}}", "code": "{{state.code}}", "previous": "{{state.docs}}" }
+      }
+    },
+    { "id": "save_docs", "type": "transform", "label": "Save docs", "config": { "set": { "docs": "{{outputs.docs}}" } } },
+    {
+      "id": "libraries",
+      "type": "human",
+      "label": "Library and architecture options",
+      "config": {
+        "prompt": "Compare library/architecture options in the current stack. Resume with {\"options\":[{\"name\":\"...\",\"pros\":[...],\"cons\":[...],\"fit\":\"...\"}], \"recommendation\":\"...\"}.",
+        "payload": { "understand_context": "{{state.understand_context}}", "docs": "{{state.docs}}", "previous": "{{state.libraries}}" }
+      }
+    },
+    { "id": "save_libraries", "type": "transform", "label": "Save options", "config": { "set": { "libraries": "{{outputs.libraries}}" } } },
+    {
+      "id": "strategy",
+      "type": "human",
+      "label": "Implementation strategy",
+      "config": {
+        "prompt": "Draft the concrete implementation strategy. Resume with {\"steps\":[...], \"dataFlow\":\"...\", \"apiChanges\":[...], \"uiChanges\":[...], \"migration\":\"...\", \"rollback\":\"...\"}.",
+        "payload": { "understand_context": "{{state.understand_context}}", "code": "{{state.code}}", "docs": "{{state.docs}}", "libraries": "{{state.libraries}}", "previous": "{{state.strategy}}" }
+      }
+    },
+    { "id": "save_strategy", "type": "transform", "label": "Save strategy", "config": { "set": { "strategy": "{{outputs.strategy}}" } } },
+    {
+      "id": "verification",
+      "type": "human",
+      "label": "Verification plan",
+      "config": {
+        "prompt": "Define verification. Resume with {\"tests\":[...], \"manualChecks\":[...], \"typecheck\":\"...\", \"lint\":\"...\", \"acceptance\":[...]}.",
+        "payload": { "understand_context": "{{state.understand_context}}", "strategy": "{{state.strategy}}", "previous": "{{state.verification}}" }
+      }
+    },
+    { "id": "save_verification", "type": "transform", "label": "Save verification", "config": { "set": { "verification": "{{outputs.verification}}" } } },
+    {
+      "id": "synthesize",
+      "type": "transform",
+      "label": "Produce plan_context",
+      "config": {
+        "set": {
+          "plan_context": {
+            "goal": "{{state.goal}}",
+            "understand_context": "{{state.understand_context}}",
+            "code": "{{state.code}}",
+            "docs": "{{state.docs}}",
+            "libraries": "{{state.libraries}}",
+            "strategy": "{{state.strategy}}",
+            "verification": "{{state.verification}}"
+          }
+        },
+        "output": { "handoff": "plan_context", "plan_context": "{{state.plan_context}}" }
+      }
+    },
+    { "id": "end", "type": "end", "label": "Planning complete" }
+  ],
+  "edges": {
+    "init": "hub",
+    "hub": "route",
+    "route": { "code": "code", "docs": "docs", "libraries": "libraries", "strategy": "strategy", "verification": "verification", "synthesize": "synthesize", "fallback": "strategy" },
+    "code": "save_code",
+    "save_code": "hub",
+    "docs": "save_docs",
+    "save_docs": "hub",
+    "libraries": "save_libraries",
+    "save_libraries": "hub",
+    "strategy": "save_strategy",
+    "save_strategy": "hub",
+    "verification": "save_verification",
+    "save_verification": "hub",
+    "synthesize": "end",
+    "end": "end"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "name": "implementation",
+  "description": "Implementation execution flow. Starts from a plan_context and tracks preparation, edits, tests, review, and final handoff through interrupt/resume checkpoints.",
+  "start": "init",
+  "context": { "mode": "fresh" },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "transform",
+      "label": "Load plan_context",
+      "config": {
+        "set": {
+          "flow": "implementation",
+          "plan_context": "{{input.plan_context}}",
+          "goal": "{{input.plan_context.goal}}"
+        }
+      }
+    },
+    {
+      "id": "hub",
+      "type": "human",
+      "label": "Implementation hub",
+      "config": {
+        "prompt": "Choose the next implementation checkpoint. Resume with {\"next\":\"prepare\"|\"edit\"|\"test\"|\"review\"|\"finish\", \"note\":\"optional\"}.",
+        "payload": {
+          "goal": "{{state.goal}}",
+          "plan_context": "{{state.plan_context}}",
+          "progress": {
+            "prepare": "{{state.prepare}}",
+            "edit": "{{state.edit}}",
+            "test": "{{state.test}}",
+            "review": "{{state.review}}"
+          },
+          "routes": ["prepare", "edit", "test", "review", "finish"]
+        }
+      }
+    },
+    { "id": "route", "type": "condition", "label": "Route checkpoint", "config": { "from": "outputs.hub.next", "fallback": "prepare" } },
+    {
+      "id": "prepare",
+      "type": "human",
+      "label": "Preparation checkpoint",
+      "config": {
+        "prompt": "Confirm preparation before editing. Resume with {\"filesRead\":[...], \"commandsRun\":[...], \"assumptions\":[...], \"ready\":true|false}.",
+        "payload": { "plan_context": "{{state.plan_context}}", "previous": "{{state.prepare}}" }
+      }
+    },
+    { "id": "save_prepare", "type": "transform", "label": "Save preparation", "config": { "set": { "prepare": "{{outputs.prepare}}" } } },
+    {
+      "id": "edit",
+      "type": "human",
+      "label": "Edit checkpoint",
+      "config": {
+        "prompt": "Record implementation edits or request the agent to perform them in the current session. Resume with {\"changedFiles\":[...], \"summary\":\"...\", \"blocked\":[...]}.",
+        "payload": { "plan_context": "{{state.plan_context}}", "prepare": "{{state.prepare}}", "previous": "{{state.edit}}" }
+      }
+    },
+    { "id": "save_edit", "type": "transform", "label": "Save edits", "config": { "set": { "edit": "{{outputs.edit}}" } } },
+    {
+      "id": "test",
+      "type": "human",
+      "label": "Verification checkpoint",
+      "config": {
+        "prompt": "Run/record verification. Resume with {\"commands\":[...], \"passed\":[...], \"failed\":[...], \"manualChecks\":[...]}.",
+        "payload": { "plan_context": "{{state.plan_context}}", "edit": "{{state.edit}}", "verification": "{{state.plan_context.verification}}", "previous": "{{state.test}}" }
+      }
+    },
+    { "id": "save_test", "type": "transform", "label": "Save verification", "config": { "set": { "test": "{{outputs.test}}" } } },
+    {
+      "id": "review",
+      "type": "human",
+      "label": "Review checkpoint",
+      "config": {
+        "prompt": "Review implementation quality. Resume with {\"issues\":[...], \"risks\":[...], \"followUps\":[...], \"approved\":true|false}.",
+        "payload": { "plan_context": "{{state.plan_context}}", "edit": "{{state.edit}}", "test": "{{state.test}}", "previous": "{{state.review}}" }
+      }
+    },
+    { "id": "save_review", "type": "transform", "label": "Save review", "config": { "set": { "review": "{{outputs.review}}" } } },
+    {
+      "id": "finish",
+      "type": "transform",
+      "label": "Produce implementation_result",
+      "config": {
+        "set": {
+          "implementation_result": {
+            "goal": "{{state.goal}}",
+            "plan_context": "{{state.plan_context}}",
+            "prepare": "{{state.prepare}}",
+            "edit": "{{state.edit}}",
+            "test": "{{state.test}}",
+            "review": "{{state.review}}"
+          }
+        },
+        "output": { "handoff": "implementation_result", "implementation_result": "{{state.implementation_result}}" }
+      }
+    },
+    { "id": "end", "type": "end", "label": "Implementation complete" }
+  ],
+  "edges": {
+    "init": "hub",
+    "hub": "route",
+    "route": { "prepare": "prepare", "edit": "edit", "test": "test", "review": "review", "finish": "finish", "fallback": "prepare" },
+    "prepare": "save_prepare",
+    "save_prepare": "hub",
+    "edit": "save_edit",
+    "save_edit": "hub",
+    "test": "save_test",
+    "save_test": "hub",
+    "review": "save_review",
+    "save_review": "hub",
+    "finish": "end",
+    "end": "end"
+  }
+}

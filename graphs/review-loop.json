@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "review-loop",
+  "description": "Example worker → reviewer → human approval loop. Execution requires future human/subagent runtime phases.",
+  "start": "worker",
+  "context": { "mode": "fresh" },
+  "nodes": [
+    { "id": "worker", "type": "agent", "label": "Worker", "config": { "task": "Implement the requested change.", "agent": "worker" }, "context": { "mode": "fresh" } },
+    { "id": "reviewer", "type": "agent", "label": "Reviewer", "config": { "task": "Review worker output.", "agent": "reviewer" }, "context": { "mode": "fresh" } },
+    { "id": "approval", "type": "human", "label": "Human approval", "config": { "prompt": "Approve reviewer feedback?", "payload": { "kind": "approval" } } },
+    { "id": "route", "type": "condition", "label": "Approval route", "config": { "from": "outputs.approval.approved", "fallback": "revise" } },
+    { "id": "revise", "type": "agent", "label": "Revise", "config": { "task": "Address review feedback.", "agent": "worker" }, "context": { "mode": "fresh" } }
+  ],
+  "edges": {
+    "worker": "reviewer",
+    "reviewer": "approval",
+    "approval": "route",
+    "route": { "true": "end", "false": "revise", "fallback": "revise" },
+    "revise": "reviewer"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "graph-of-thoughts-basic",
+  "description": "Experimental declarative Graph of Thoughts preview example; runtime support is intentionally not included yet.",
+  "start": "think",
+  "nodes": [
+    {
+      "id": "think",
+      "type": "thought-graph",
+      "label": "Generate and rank thoughts",
+      "config": {
+        "operations": [
+          { "type": "Generate", "count": 3 },
+          { "type": "Score", "criteria": "usefulness" },
+          { "type": "KeepBestN", "n": 1 },
+          { "type": "Aggregate" }
+        ]
+      }
+    }
+  ],
+  "edges": { "think": "end" }
+}

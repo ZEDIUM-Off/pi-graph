@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "name": "understand",
+  "description": "Interactive discovery flow. Builds a clear intent state by freely exploring business, UX, technical, constraints, and open-question aspects before producing an understand_context handoff.",
+  "start": "init",
+  "context": { "mode": "fresh" },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "transform",
+      "label": "Initialize understanding state",
+      "config": {
+        "set": {
+          "flow": "understand",
+          "goal": "{{input.goal}}"
+        }
+      }
+    },
+    {
+      "id": "hub",
+      "type": "human",
+      "label": "Understanding hub",
+      "config": {
+        "prompt": "Choose the next understanding lens for goal '{{state.goal}}'. Resume with an object like {\"next\":\"business\"|\"ux\"|\"technical\"|\"constraints\"|\"questions\"|\"synthesize\", \"note\":\"optional\"}.",
+        "payload": {
+          "goal": "{{state.goal}}",
+          "known": {
+            "business": "{{state.business}}",
+            "ux": "{{state.ux}}",
+            "technical": "{{state.technical}}",
+            "constraints": "{{state.constraints}}",
+            "questions": "{{state.questions}}"
+          },
+          "routes": ["business", "ux", "technical", "constraints", "questions", "synthesize"]
+        }
+      }
+    },
+    {
+      "id": "route",
+      "type": "condition",
+      "label": "Route selected lens",
+      "config": { "from": "outputs.hub.next", "fallback": "questions" }
+    },
+    {
+      "id": "business",
+      "type": "human",
+      "label": "Business intent",
+      "config": {
+        "prompt": "Clarify the business purpose. Resume with {\"purpose\":\"...\", \"users\":\"...\", \"success\":\"...\", \"mustHave\":[...], \"unknowns\":[...]}.",
+        "payload": { "goal": "{{state.goal}}", "previous": "{{state.business}}" }
+      }
+    },
+    {
+      "id": "save_business",
+      "type": "transform",
+      "label": "Save business intent",
+      "config": { "set": { "business": "{{outputs.business}}" } }
+    },
+    {
+      "id": "ux",
+      "type": "human",
+      "label": "UX and visual behavior",
+      "config": {
+        "prompt": "Clarify visual/UX behavior. Resume with {\"userJourney\":\"...\", \"layout\":\"...\", \"states\":[...], \"copy\":\"...\", \"unknowns\":[...]}.",
+        "payload": { "goal": "{{state.goal}}", "business": "{{state.business}}", "previous": "{{state.ux}}" }
+      }
+    },
+    {
+      "id": "save_ux",
+      "type": "transform",
+      "label": "Save UX intent",
+      "config": { "set": { "ux": "{{outputs.ux}}" } }
+    },
+    {
+      "id": "technical",
+      "type": "human",
+      "label": "Codebase and technical implications",
+      "config": {
+        "prompt": "Map technical implications in the current codebase. Resume with {\"areas\":[...], \"files\":[...], \"dependencies\":[...], \"integrationPoints\":[...], \"unknowns\":[...]}.",
+        "payload": { "goal": "{{state.goal}}", "business": "{{state.business}}", "ux": "{{state.ux}}", "previous": "{{state.technical}}" }
+      }
+    },
+    {
+      "id": "save_technical",
+      "type": "transform",
+      "label": "Save technical map",
+      "config": { "set": { "technical": "{{outputs.technical}}" } }
+    },
+    {
+      "id": "constraints",
+      "type": "human",
+      "label": "Constraints and risks",
+      "config": {
+        "prompt": "Clarify constraints, risks, non-goals, and acceptance criteria. Resume with {\"constraints\":[...], \"risks\":[...], \"nonGoals\":[...], \"acceptanceCriteria\":[...]}.",
+        "payload": { "goal": "{{state.goal}}", "known": "{{state}}" }
+      }
+    },
+    {
+      "id": "save_constraints",
+      "type": "transform",
+      "label": "Save constraints",
+      "config": { "set": { "constraints": "{{outputs.constraints}}" } }
+    },
+    {
+      "id": "questions",
+      "type": "human",
+      "label": "Open questions",
+      "config": {
+        "prompt": "List or resolve open questions. Resume with {\"resolved\":[...], \"remaining\":[...], \"next\":\"hub\"|\"synthesize\"}.",
+        "payload": { "goal": "{{state.goal}}", "known": "{{state}}" }
+      }
+    },
+    {
+      "id": "save_questions",
+      "type": "transform",
+      "label": "Save open questions",
+      "config": { "set": { "questions": "{{outputs.questions}}" } }
+    },
+    {
+      "id": "synthesize",
+      "type": "transform",
+      "label": "Produce understand_context",
+      "config": {
+        "set": {
+          "understand_context": {
+            "goal": "{{state.goal}}",
+            "business": "{{state.business}}",
+            "ux": "{{state.ux}}",
+            "technical": "{{state.technical}}",
+            "constraints": "{{state.constraints}}",
+            "questions": "{{state.questions}}"
+          }
+        },
+        "output": {
+          "handoff": "understand_context",
+          "understand_context": "{{state.understand_context}}"
+        }
+      }
+    },
+    { "id": "end", "type": "end", "label": "Understanding complete" }
+  ],
+  "edges": {
+    "init": "hub",
+    "hub": "route",
+    "route": {
+      "business": "business",
+      "ux": "ux",
+      "technical": "technical",
+      "constraints": "constraints",
+      "questions": "questions",
+      "synthesize": "synthesize",
+      "fallback": "questions"
+    },
+    "business": "save_business",
+    "save_business": "hub",
+    "ux": "save_ux",
+    "save_ux": "hub",
+    "technical": "save_technical",
+    "save_technical": "hub",
+    "constraints": "save_constraints",
+    "save_constraints": "hub",
+    "questions": "save_questions",
+    "save_questions": "hub",
+    "synthesize": "end",
+    "end": "end"
+  }
+}

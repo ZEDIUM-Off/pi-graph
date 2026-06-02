@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "invalid-missing-start",
+  "start": "missing",
+  "nodes": [ { "id": "a", "type": "transform" } ],
+  "edges": { "a": "end" }
+}
