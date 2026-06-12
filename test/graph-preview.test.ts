@@ -35,3 +35,19 @@ test("mermaid avoids reserved end node identifiers", async () => {
 	assert.doesNotMatch(mermaid, /^\s*n_end\s+-->/m);
 	assert.match(mermaid, /synthesize.*--> END/);
 });
+
+test("mermaid renders command goto edges", () => {
+	const graph = normalizeGraphConfig({
+		version: 1,
+		name: "command-mermaid",
+		start: "a",
+		nodes: [
+			{ id: "a", type: "transform", config: { command: { goto: "b", ends: ["b"] } } },
+			{ id: "b", type: "transform" },
+		],
+		edges: { b: "end" },
+	});
+	const mermaid = renderMermaid(graph);
+	assert.match(mermaid, /command/);
+	assert.match(mermaid, /n_a .* n_b/);
+});

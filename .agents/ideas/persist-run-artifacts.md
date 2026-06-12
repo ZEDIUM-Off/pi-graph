@@ -1,5 +1,11 @@
 # Idée d'amélioration — persistance des artefacts de run pi-graph
 
+## Status
+
+Implemented for release `0.2.0` as durable inspection artifacts under `.pi/graph-runs/<run-id>/`.
+
+Still open: full resume-after-process-restart requires a durable LangGraph checkpointer. See workspace dogfooding note `/home/zedium/workspaces/.agents/ideas/pi-graph-durable-resume.md`.
+
 ## Contexte
 
 Pendant l'utilisation du flow `understand`, un run sauvegardé avec `saveRun: true` reste actuellement stocké uniquement en mémoire.
@@ -108,7 +114,7 @@ graph({ action: "list-runs" }) // optionnel
 ## Critères d'acceptation
 
 - `saveRun: true` écrit un dossier `.pi/graph-runs/<run-id>/`.
-- Un run terminé peut être retrouvé après redémarrage de Pi.
+- Un run terminé peut être retrouvé après redémarrage de Pi pour inspection via `status`/`history` disk fallback.
 - Le `understand_context` final est disponible dans `final-state.json` ou `summary.md`.
 - Le graphe exécuté est archivé avec JSON, MMD et SVG.
 - `graph status/history` peut lire depuis la mémoire si disponible, sinon depuis le disque.

@@ -14,6 +14,8 @@ const ActionEnum = [
 	"resume",
 	"status",
 	"history",
+	"list-runs",
+	"get-run",
 	"interrupt",
 ] as const;
 const ScopeEnum = ["project", "user", "builtin"] as const;

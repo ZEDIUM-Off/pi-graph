@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "name": "harness-report",
+  "description": "Capture bugs, improvements, and ideas discovered while dogfooding the Pi agent harness. Produces a structured harness_report payload that can be turned into an issue or backlog item for pi-graph, pi-context-tree, skills, or context files.",
+  "start": "init",
+  "context": { "mode": "fresh" },
+  "nodes": [
+    {
+      "id": "init",
+      "type": "transform",
+      "label": "Initialize harness report",
+      "config": {
+        "set": {
+          "flow": "harness-report",
+          "kind": "{{input.system}}",
+          "target": "{{input.target}}",
+          "note": "{{input.note}}",
+          "run": "{{input.run}}"
+        }
+      }
+    },
+    {
+      "id": "classify",
+      "type": "human",
+      "label": "Classify harness feedback",
+      "config": {
+        "prompt": "Classify this harness feedback. Resume with {\"target\":\"pi-graph|pi-context-tree|skills|context-files|other\", \"kind\":\"bug|improvement|idea\", \"severity\":\"low|medium|high\", \"title\":\"...\", \"summary\":\"...\", \"next\":\"details\"|\"synthesize\"}.",
+        "payload": {
+          "kind": "{{state.kind}}",
+          "target": "{{state.target}}",
+          "note": "{{state.note}}",
+          "run": "{{state.run}}",
+          "routes": ["details", "synthesize"]
+        }
+      }
+    },
+    {
+      "id": "route_classify",
+      "type": "condition",
+      "label": "Route classification",
+      "config": { "from": "outputs.classify.next", "fallback": "details" }
+    },
+    {
+      "id": "details",
+      "type": "human",
+      "label": "Capture reproduction and desired behavior",
+      "config": {
+        "prompt": "Add actionable detail. Resume with {\"observed\":\"...\", \"expected\":\"...\", \"reproduction\":[...], \"files\":[...], \"ideas\":[...], \"next\":\"synthesize\"}.",
+        "payload": {
+          "classification": "{{outputs.classify}}",
+          "note": "{{state.note}}",
+          "run": "{{state.run}}",
+          "routes": ["synthesize"]
+        }
+      }
+    },
+    {
+      "id": "synthesize",
+      "type": "transform",
+      "label": "Produce harness_report",
+      "config": {
+        "set": {
+          "harness_report": {
+            "target": "{{outputs.classify.target}}",
+            "kind": "{{outputs.classify.kind}}",
+            "severity": "{{outputs.classify.severity}}",
+            "title": "{{outputs.classify.title}}",
+            "summary": "{{outputs.classify.summary}}",
+            "note": "{{state.note}}",
+            "run": "{{state.run}}",
+            "details": "{{outputs.details}}"
+          }
+        },
+        "output": {
+          "handoff": "harness_report",
+          "harness_report": "{{state.harness_report}}"
+        }
+      }
+    },
+    { "id": "end", "type": "end", "label": "Harness report complete" }
+  ],
+  "edges": {
+    "init": "classify",
+    "classify": "route_classify",
+    "route_classify": {
+      "details": "details",
+      "synthesize": "synthesize",
+      "fallback": "details"
+    },
+    "details": "synthesize",
+    "synthesize": "end",
+    "end": "end"
+  }
+}

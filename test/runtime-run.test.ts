@@ -86,7 +86,12 @@ test("interrupts and resumes human nodes", async () => {
 	const waiting = await runGraph(graph, {});
 	assert.equal(waiting.status, "waiting");
 	assert.equal(waiting.currentNode, "approval");
-	assert.deepEqual(waiting.nextRoutes, ["done"]);
+	assert.deepEqual(waiting.nextRoutes, [
+		"done",
+		"report_issue",
+		"report_improvement",
+		"report_idea",
+	]);
 	assert.deepEqual((waiting.interrupt as any).payload, { kind: "approval" });
 
 	const resumed = await resumeGraph(waiting.id, { approved: true });
@@ -129,4 +134,72 @@ test("runs an inline subgraph", async () => {
 	const run = await runGraph(graph, { value: "ok" });
 	assert.equal(run.status, "completed");
 	assert.equal((run.result as any).outputs.child.outputs.setChild, "child ok");
+});
+
+
+test("human interrupts advertise system reporting routes", async () => {
+	const graph: GraphConfig = {
+		version: 1,
+		name: "system-routes-runtime",
+		start: "approval",
+		nodes: [
+			{
+				id: "approval",
+				type: "human",
+				config: { prompt: "Approve?", payload: { routes: ["continue"] } },
+			},
+			{ id: "done", type: "transform", config: { output: "done" } },
+		],
+		edges: { approval: "done", done: "end" },
+	};
+	const waiting = await runGraph(graph, {});
+	assert.equal(waiting.status, "waiting");
+	assert.deepEqual((waiting.interrupt as any).system.routes, [
+		"report_issue",
+		"report_improvement",
+		"report_idea",
+	]);
+	assert.deepEqual(waiting.nextRoutes, [
+		"continue",
+		"report_issue",
+		"report_improvement",
+		"report_idea",
+	]);
+});
+
+test("system reporting resume records feedback without consuming the human interrupt", async () => {
+	const graph: GraphConfig = {
+		version: 1,
+		name: "system-report-runtime",
+		start: "approval",
+		nodes: [
+			{
+				id: "approval",
+				type: "human",
+				config: { prompt: "Approve?", payload: { kind: "approval" } },
+			},
+			{
+				id: "done",
+				type: "transform",
+				config: { output: "{{outputs.approval.approved}}" },
+			},
+		],
+		edges: { approval: "done", done: "end" },
+	};
+	const waiting = await runGraph(graph, {});
+	const reported = await resumeGraph(waiting.id, {
+		system: "report_improvement",
+		target: "pi-graph",
+		note: "Expose meta-routes from all human interrupts.",
+	});
+	assert.equal(reported.status, "waiting");
+	assert.equal(reported.currentNode, "approval");
+	assert.deepEqual(reported.interrupt, waiting.interrupt);
+	const event = reported.history.at(-1);
+	assert.equal(event?.type, "system_report_requested");
+	assert.deepEqual((event?.data as any).run.currentNode, "approval");
+
+	const resumed = await resumeGraph(waiting.id, { approved: true });
+	assert.equal(resumed.status, "completed");
+	assert.equal((resumed.result as any).outputs.done, true);
 });

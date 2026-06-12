@@ -8,7 +8,12 @@ import type { GraphConfig, RunStatus } from "../shared/types.js";
 import { createMemorySaver } from "./checkpoints.js";
 import { compileGraph } from "./compile.js";
 import { extractInterrupts, interruptPayload } from "./interrupts.js";
-import { saveRunSnapshot } from "./run-store.js";
+import {
+	getSavedRunHistory,
+	getSavedRunStatus,
+	listSavedRuns,
+	saveRunSnapshot,
+} from "./run-store.js";
 
 interface RunRecord {
 	id: string;
@@ -98,6 +103,15 @@ export async function resumeGraph(
 			id,
 			status: record.status,
 		});
+	if (isSystemResume(message)) {
+		record.history.push({
+			at: new Date().toISOString(),
+			type: "system_report_requested",
+			data: systemReportData(message, record),
+		});
+		if (options.onUpdate) record.onUpdate = options.onUpdate;
+		return notify(record);
+	}
 	record.status = "running";
 	if (options.onUpdate) record.onUpdate = options.onUpdate;
 	record.history.push({
@@ -125,13 +139,23 @@ export async function resumeGraph(
 }
 
 export function getRunStatus(id: string) {
-	const record = getRun(id);
-	return publicRecord(record);
+	const record = runs.get(id);
+	return record ? publicRecord(record) : getSavedRunStatus(id);
 }
 
 export function getRunHistory(id: string) {
-	const record = getRun(id);
-	return { id, history: record.history, status: record.status };
+	const record = runs.get(id);
+	return record
+		? { id, history: record.history, status: record.status }
+		: getSavedRunHistory(id);
+}
+
+export function getSavedRun(id: string) {
+	return getSavedRunStatus(id);
+}
+
+export function listRuns() {
+	return listSavedRuns();
 }
 
 export function interruptRun(id: string) {
@@ -194,7 +218,7 @@ function publicRecord(record: RunRecord) {
 		history: record.history,
 		artifacts: record.artifacts,
 	};
-	if (record.saveRun) saveRunSnapshot(snapshot);
+	if (record.saveRun) saveRunSnapshot(snapshot, { graph: record.graph });
 	return snapshot;
 }
 
@@ -218,12 +242,40 @@ function nextRoutes(
 ): string[] {
 	const payloadRoutes =
 		(interrupt as any)?.payload?.routes ?? (interrupt as any)?.routes;
-	if (Array.isArray(payloadRoutes)) return payloadRoutes.map(String);
+	const systemRoutes = (interrupt as any)?.system?.routes;
+	if (Array.isArray(payloadRoutes))
+		return mergeRoutes(payloadRoutes.map(String), systemRoutes);
 	const edge = graph.edges?.[nodeId];
-	if (!edge) return [];
-	if (typeof edge === "string") return edge === "end" ? [] : [edge];
-	if (Array.isArray(edge)) return edge.filter((item) => item !== "end");
-	return Object.keys(edge);
+	let routes: string[] = [];
+	if (typeof edge === "string") routes = edge === "end" ? [] : [edge];
+	else if (Array.isArray(edge)) routes = edge.filter((item) => item !== "end");
+	else if (edge && typeof edge === "object") routes = Object.keys(edge);
+	return mergeRoutes(routes, systemRoutes);
+}
+
+function mergeRoutes(routes: string[], systemRoutes: unknown): string[] {
+	if (!Array.isArray(systemRoutes)) return routes;
+	return [...routes, ...systemRoutes.map(String).filter((route) => !routes.includes(route))];
+}
+
+function isSystemResume(message: unknown): message is Record<string, unknown> {
+	if (!message || typeof message !== "object" || Array.isArray(message)) return false;
+	const system = (message as Record<string, unknown>).system;
+	return system === "report_issue" || system === "report_improvement" || system === "report_idea";
+}
+
+function systemReportData(message: Record<string, unknown>, record: RunRecord) {
+	return {
+		system: message.system,
+		target: message.target ?? "other",
+		note: message.note ?? "",
+		run: {
+			id: record.id,
+			graphName: record.graphName,
+			status: record.status,
+			currentNode: currentNodeId(record),
+		},
+	};
 }
 
 function getRun(id: string): RunRecord {

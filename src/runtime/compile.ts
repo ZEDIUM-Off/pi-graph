@@ -14,6 +14,7 @@ import { createTransformNode } from "./node-handlers/transform-node.js";
 import { createConditionRouter } from "./node-handlers/condition-node.js";
 import { createHumanNode } from "./node-handlers/human-node.js";
 import { createToolNode } from "./node-handlers/tool-node.js";
+import { createStoreNode } from "./node-handlers/store-node.js";
 import { createSubgraphNode } from "./node-handlers/subgraph-node.js";
 import { createSubagentNode } from "./node-handlers/subagent-node.js";
 import { createSubagentChainNode } from "./node-handlers/subagent-chain-node.js";
@@ -52,6 +53,7 @@ export async function compileGraph(
 		builder.addNode(
 			node.id,
 			createNodeHandler(node, { pi: options.pi, depth, graph }),
+			commandNodeOptions(node),
 		);
 	}
 
@@ -99,6 +101,8 @@ function createNodeHandler(
 			return createHumanNode(node);
 		case "tool":
 			return createToolNode(node, options.pi);
+		case "store":
+			return createStoreNode(node);
 		case "subgraph":
 			return createSubgraphNode(node, options);
 		case "agent":
@@ -140,4 +144,25 @@ function asRouteMap(value: unknown, nodeId: string): Record<string, string> {
 		`Condition node '${nodeId}' requires object routes`,
 		{ node: nodeId },
 	);
+}
+
+
+function commandNodeOptions(node: GraphNode): { ends?: string[] } | undefined {
+	const command = (node.config as Record<string, unknown> | undefined)?.command as
+		| Record<string, unknown>
+		| undefined;
+	if (!command || typeof command !== "object") return undefined;
+	const ends = commandEnds(command);
+	return ends.length ? ({ ends } as any) : undefined;
+}
+
+function commandEnds(command: Record<string, unknown>): string[] {
+	const values = [command.ends, command.goto].flatMap((value) =>
+		Array.isArray(value) ? value : [value],
+	);
+	return [...new Set(
+		values
+			.filter((value): value is string => typeof value === "string" && !value.includes("{{"))
+			.map((value) => (value === "end" ? END : value)),
+	)];
 }

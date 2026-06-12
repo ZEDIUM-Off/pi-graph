@@ -43,3 +43,32 @@ test("graph names must be safe stored identifiers", () => {
 	assert.equal(result.valid, false);
 	assert.ok(result.errors.some((e) => e.path === "name" && e.code === "id"));
 });
+
+test("command targets must exist when statically declared", () => {
+	const graph = normalizeGraphConfig({
+		version: 1,
+		name: "bad-command-target",
+		start: "a",
+		nodes: [{ id: "a", type: "transform", config: { command: { goto: "missing" } } }],
+		edges: {},
+	});
+	const result = validateGraphConfig(graph);
+	assert.equal(result.valid, false);
+	assert.ok(result.errors.some((e) => e.code === "command_target"));
+});
+
+test("command targets participate in reachability", () => {
+	const graph = normalizeGraphConfig({
+		version: 1,
+		name: "command-reachable",
+		start: "a",
+		nodes: [
+			{ id: "a", type: "transform", config: { command: { goto: "b", ends: ["b"] } } },
+			{ id: "b", type: "transform" },
+		],
+		edges: { b: "end" },
+	});
+	const result = validateGraphConfig(graph);
+	assert.equal(result.valid, true, JSON.stringify(result.errors));
+	assert.equal(result.warnings.some((w) => w.path === "nodes.b" && w.code === "unreachable"), false);
+});

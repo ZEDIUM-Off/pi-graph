@@ -28,6 +28,20 @@ export function graphPath(scope: GraphScope, name: string, base = cwd()) {
 	return path.join(graphDirs(base)[scope], graphFileName(name));
 }
 
+
+export const projectGraphRunRoot = (base = cwd()) =>
+	path.join(base, ".pi", "graph-runs");
+export const graphStoreDir = (base = cwd()) =>
+	path.join(base, ".pi", "graph-store");
+export const graphStorePath = (base = cwd()) =>
+	path.join(graphStoreDir(base), "store.json");
+export function graphRunDir(runId: string, base = cwd()) {
+	return path.join(projectGraphRunRoot(base), runId);
+}
+export function graphRunPath(runId: string, file: string, base = cwd()) {
+	return path.join(graphRunDir(runId, base), file);
+}
+
 export function graphArtifactDir(
 	scope: GraphScope | "path",
 	name: string,

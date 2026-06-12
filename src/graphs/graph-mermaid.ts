@@ -8,6 +8,11 @@ export function renderMermaid(graph: GraphConfig): string {
 			`  ${nodeId(node.id)}["${esc(node.label ?? node.id)}\\n${esc(node.type)}"]`,
 		);
 	}
+	for (const node of graph.nodes) {
+		if (node.type === "end") continue;
+		for (const t of commandTargets(node))
+			lines.push(`  ${nodeId(node.id)} -. command .-> ${target(t)}`);
+	}
 	for (const [from, edge] of Object.entries(graph.edges ?? {})) {
 		if (isEndNode(graph, from)) continue;
 		if (typeof edge === "string")
@@ -26,6 +31,15 @@ function nodeId(id: string) {
 }
 function target(id: string) {
 	return id === "end" ? "END" : nodeId(id);
+}
+function commandTargets(node: { config?: Record<string, unknown> }) {
+	const command = node.config?.command as Record<string, unknown> | undefined;
+	if (!command || typeof command !== "object") return [];
+	return [command.ends, command.goto]
+		.flatMap((value) => (Array.isArray(value) ? value : [value]))
+		.filter((value): value is string =>
+			typeof value === "string" && !value.includes("{{") && value !== "parent" && value !== "PARENT",
+		);
 }
 function isEndNode(graph: GraphConfig, id: string) {
 	return graph.nodes.some((node) => node.id === id && node.type === "end");

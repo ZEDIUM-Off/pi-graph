@@ -11,6 +11,10 @@ export function createHumanNode(node: GraphNode) {
       nodeId: node.id,
       prompt: config.prompt ?? node.label ?? `Input required for ${node.id}`,
       payload: config.payload ?? {},
+      system: {
+        routes: ["report_issue", "report_improvement", "report_idea"],
+        hint: "Resume with {system:'report_issue'|'report_improvement'|'report_idea', target:'pi-graph|pi-context-tree|skills|context-files|other', note:'...'} to record harness feedback without consuming this interrupt.",
+      },
     }, state);
     const resume = interrupt(payload as any);
     return {

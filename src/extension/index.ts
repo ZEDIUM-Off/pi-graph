@@ -13,6 +13,8 @@ import { validateGraphConfig } from "../graphs/graph-validator.js";
 import {
 	getRunHistory,
 	getRunStatus,
+	getSavedRun,
+	listRuns,
 	interruptRun,
 	resumeGraph,
 	runGraph,
@@ -245,6 +247,19 @@ export async function handleGraphAction(
 					text: history.history.map((e) => `${e.at}\t${e.type}`).join("\n"),
 					details: history,
 				};
+			}
+			case "list-runs": {
+				const runs = listRuns();
+				return {
+					text: runs.length
+						? runs.map((run) => `${run.id}\t${run.graphName}\t${run.status}`).join("\n")
+						: "No saved runs found.",
+					details: { runs },
+				};
+			}
+			case "get-run": {
+				const run = getSavedRun(required(params.id, "id"));
+				return { text: formatRunText(run), details: { run } };
 			}
 			case "interrupt": {
 				const run = interruptRun(required(params.id, "id"));

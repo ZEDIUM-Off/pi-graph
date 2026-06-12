@@ -5,6 +5,7 @@ export type NodeType =
   | "subagent-chain"
   | "human"
   | "tool"
+  | "store"
   | "subgraph"
   | "thought-graph"
   | "end";

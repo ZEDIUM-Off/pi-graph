@@ -13,6 +13,7 @@ const nodeTypes = new Set([
 	"subagent-chain",
 	"human",
 	"tool",
+	"store",
 	"subgraph",
 	"thought-graph",
 	"end",
@@ -74,6 +75,9 @@ export function validateGraphConfig(graph: GraphConfig): ValidationResult {
 	if (graph.start && !ids.has(graph.start))
 		err("start", `start node ${graph.start} does not exist`, "missing_start");
 
+	for (const [i, node] of (graph.nodes ?? []).entries())
+		validateCommandTargets(node, `nodes[${i}]`, ids, err);
+
 	const edges = graph.edges ?? {};
 	for (const [from, to] of Object.entries(edges)) {
 		if (!ids.has(from))
@@ -116,6 +120,34 @@ export function validateGraphConfig(graph: GraphConfig): ValidationResult {
 	return { valid: errors.length === 0, errors, warnings };
 }
 
+function commandTargets(node: GraphNode): string[] {
+	const command = (node.config as Record<string, unknown> | undefined)?.command as
+		| Record<string, unknown>
+		| undefined;
+	if (!command || typeof command !== "object") return [];
+	return [command.ends, command.goto]
+		.flatMap((value) => (Array.isArray(value) ? value : [value]))
+		.filter((value): value is string =>
+			typeof value === "string" && !value.includes("{{") && value !== "parent" && value !== "PARENT",
+		);
+}
+
+function validateCommandTargets(
+	node: GraphNode,
+	path: string,
+	ids: Set<string>,
+	err: (path: string, message: string, code?: string) => void,
+) {
+	for (const target of commandTargets(node)) {
+		if (target !== "end" && !ids.has(target))
+			err(
+				`${path}.config.command`,
+				`command target ${target} does not exist`,
+				"command_target",
+			);
+	}
+}
+
 function edgeTargets(
 	value: string | string[] | Record<string, string>,
 ): string[] {
@@ -132,7 +164,10 @@ function reachableNodes(graph: GraphConfig): Set<string> {
 		const id = stack.pop()!;
 		if (id === "end" || seen.has(id)) continue;
 		seen.add(id);
-		for (const t of edgeTargets((graph.edges?.[id] as any) ?? []))
+		for (const t of [
+			...edgeTargets((graph.edges?.[id] as any) ?? []),
+			...commandTargets(graph.nodes.find((node) => node.id === id) as GraphNode),
+		])
 			if (t !== "end") stack.push(t);
 	}
 	return seen;
@@ -146,7 +181,10 @@ function hasCycle(graph: GraphConfig): boolean {
 		if (visiting.has(id)) return true;
 		if (visited.has(id)) return false;
 		visiting.add(id);
-		for (const t of edgeTargets((graph.edges?.[id] as any) ?? []))
+		for (const t of [
+			...edgeTargets((graph.edges?.[id] as any) ?? []),
+			...commandTargets(graph.nodes.find((node) => node.id === id) as GraphNode),
+		])
 			if (visit(t)) return true;
 		visiting.delete(id);
 		visited.add(id);
